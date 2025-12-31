@@ -7,26 +7,36 @@ import { sendEmail, replaceTemplateVariables } from "@/lib/email";
 import { addMonths, addDays, format } from "date-fns";
 
 export const dynamic = 'force-dynamic';
-export const maxDuration = 60;
+// maxDuration: 10s (Hobby), 60s (Pro), 300s (Enterprise)
+// Remove or set to 10 for Hobby plan
+// export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  // Verify this is a cron request (optional security)
+  // Verify cron authentication
   const authHeader = request.headers.get('authorization');
-  if (authHeader !== `Bearer ${process.env.CRON_SECRET}`) {
-    // Allow both cron and manual trigger
-    // In production, you might want to restrict this
+  const cronSecret = process.env.CRON_SECRET;
+  
+  // If CRON_SECRET is set, enforce authentication
+  if (cronSecret && authHeader !== `Bearer ${cronSecret}`) {
+    return NextResponse.json(
+      { error: 'Unauthorized - Invalid or missing CRON_SECRET' },
+      { status: 401 }
+    );
   }
 
   try {
     await connectDB();
 
     const now = new Date();
+    // Only process schedules that are due (not too far in the past to prevent stuck schedules)
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     const dueSchedules = await Schedule.find({
       isActive: true,
-      nextSendDate: { $lte: now },
+      nextSendDate: { $gte: oneDayAgo, $lte: now },
     })
       .populate('subscriberId')
-      .populate('templateId');
+      .populate('templateId')
+      .limit(100); // Limit to 100 schedules per run to avoid timeout
 
     const results = [];
 
@@ -36,6 +46,22 @@ export async function GET(request: Request) {
         const template = schedule.templateId as any;
 
         if (!subscriber || !template) {
+          console.warn(`Skipping schedule ${schedule._id}: missing subscriber or template`);
+          results.push({ 
+            success: false, 
+            scheduleId: schedule._id.toString(),
+            error: 'Missing subscriber or template' 
+          });
+          continue;
+        }
+        
+        if (!subscriber.email) {
+          console.warn(`Skipping schedule ${schedule._id}: subscriber has no email`);
+          results.push({ 
+            success: false, 
+            scheduleId: schedule._id.toString(),
+            error: 'Subscriber has no email' 
+          });
           continue;
         }
 
@@ -76,13 +102,27 @@ export async function GET(request: Request) {
               nextSendDate,
             }
           );
-          results.push({ success: true, email: subscriber.email });
+          results.push({ 
+            success: true, 
+            scheduleId: schedule._id.toString(),
+            email: subscriber.email,
+            nextSendDate: nextSendDate.toISOString()
+          });
         } else {
-          results.push({ success: false, email: subscriber.email });
+          results.push({ 
+            success: false, 
+            scheduleId: schedule._id.toString(),
+            email: subscriber.email,
+            error: 'Email sending failed'
+          });
         }
       } catch (error) {
         console.error(`Error processing schedule ${schedule._id}:`, error);
-        results.push({ success: false, error: String(error) });
+        results.push({ 
+          success: false, 
+          scheduleId: schedule._id?.toString() || 'unknown',
+          error: error instanceof Error ? error.message : String(error)
+        });
       }
     }
 

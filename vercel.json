@@ -1,6 +1,6 @@
 {
-  "crons": [{
-    "path": "/api/cron/send-emails",
-    "schedule": "0 * * * *"
-  }]
+  "buildCommand": "next build",
+  "outputDirectory": ".next",
+  "cleanUrls": true,
+  "trailingSlash": false
 }

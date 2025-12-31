@@ -186,7 +186,7 @@ export default function ScheduleModal({ onClose }: ScheduleModalProps) {
                 className="input"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Emails will be sent on this day each month
+                Emails will be sent on day {formData.dayOfMonth} of each month at midnight (00:00 UTC)
               </p>
             </div>
           ) : (
@@ -201,7 +201,7 @@ export default function ScheduleModal({ onClose }: ScheduleModalProps) {
                 className="input"
               />
               <p className="mt-1 text-xs text-gray-500">
-                Emails will be sent every {formData.intervalDays} days
+                Emails will be sent every {formData.intervalDays} days at midnight (00:00 UTC)
               </p>
             </div>
           )}

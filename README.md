@@ -6,6 +6,11 @@
 
 A modern, lightweight SaaS application for scheduling and automating personalized email reminders.
 
+## 🔄 Automated Email Setup
+
+This app uses **external cron services** for automated email sending (100% FREE!).  
+📖 See [CRON_SETUP.md](CRON_SETUP.md) for complete setup instructions.
+
 ## Features
 
 - 🔐 **Google OAuth Authentication** - Secure sign-in with Google
