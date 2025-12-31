@@ -28,9 +28,9 @@ async function getAllowedVariables(userId: string): Promise<string[]> {
 
 function validateTemplateVariables(text: string, allowedVars: string[]): boolean {
   const variableRegex = /\{\{(\w+)\}\}/g;
-  const matches = text.matchAll(variableRegex);
+  let match;
   
-  for (const match of matches) {
+  while ((match = variableRegex.exec(text)) !== null) {
     const variable = match[1];
     if (!allowedVars.includes(variable)) {
       return false;

@@ -30,7 +30,7 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
   const [showPreview, setShowPreview] = useState(false);
   const [testEmail, setTestEmail] = useState("");
   const [sendingTest, setSendingTest] = useState(false);
-  const { toast, showToast } = useToast();
+  const { showToast } = useToast();
 
   useEffect(() => {
     if (template) {
@@ -356,13 +356,6 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
           </div>
         </form>
       </div>
-      {toast && (
-        <Toast
-          message={toast.message}
-          type={toast.type}
-          onClose={() => showToast('', 'info')}
-        />
-      )}
     </div>
   );
 }

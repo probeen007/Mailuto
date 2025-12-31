@@ -26,10 +26,10 @@ export function getAvailableVariables(customVariables?: Record<string, string>):
 
 export function validateTemplateVariables(text: string, customVariables?: Record<string, string>): boolean {
   const variableRegex = /\{\{(\w+)\}\}/g;
-  const matches = text.matchAll(variableRegex);
   const allowedVars = getAvailableVariables(customVariables);
-  
-  for (const match of matches) {
+  let match;
+
+  while ((match = variableRegex.exec(text)) !== null) {
     const variable = match[1];
     if (!allowedVars.includes(variable)) {
       return false;

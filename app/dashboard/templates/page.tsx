@@ -88,7 +88,7 @@ export default function TemplatesPage() {
           ))}
         </div>
         <p className="text-sm text-blue-700 mt-2">
-          Use these variables in your templates. They'll be automatically replaced with subscriber data.
+          Use these variables in your templates. They&apos;ll be automatically replaced with subscriber data.
         </p>
       </div>
 

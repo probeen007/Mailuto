@@ -31,7 +31,11 @@ export async function POST(req: NextRequest) {
     const processedBody = replaceTemplateVariables(body, sampleData);
 
     // Send test email
-    await sendEmail(email, processedSubject, processedBody);
+    await sendEmail({
+      to: email,
+      subject: processedSubject,
+      body: processedBody,
+    });
 
     return NextResponse.json({ 
       success: true, 
