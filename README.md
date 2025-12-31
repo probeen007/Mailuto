@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="public/logo.png" alt="Mailuto Logo" width="300" />
+</p>
+
 # Mailuto - Email Automation Made Simple
 
 A modern, lightweight SaaS application for scheduling and automating personalized email reminders.
