@@ -3,6 +3,8 @@ import Image from "next/image";
 import { ArrowRight, Calendar, Users, Mail } from "lucide-react";
 import SignInButton from "@/components/auth/sign-in-button";
 
+export const dynamic = 'force-dynamic';
+
 export default function HomePage() {
   return (
     <div className="min-h-screen flex flex-col">
