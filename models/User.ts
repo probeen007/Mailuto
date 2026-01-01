@@ -37,12 +37,6 @@ const UserSchema = new Schema<IUser>(
   }
 );
 
-// Only add indexes in Node.js runtime (not Edge/browser)
-if (typeof process !== 'undefined' && process.versions?.node) {
-  UserSchema.index({ email: 1 });
-  UserSchema.index({ googleId: 1 });
-}
-
 const User = models?.User || model<IUser>('User', UserSchema);
 
 export default User;
