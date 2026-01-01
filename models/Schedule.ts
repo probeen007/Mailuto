@@ -21,7 +21,6 @@ const ScheduleSchema = new Schema<ISchedule>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
-      index: true,
     },
     subscriberId: {
       type: Schema.Types.ObjectId,
@@ -50,7 +49,6 @@ const ScheduleSchema = new Schema<ISchedule>(
     nextSendDate: {
       type: Date,
       required: true,
-      index: true,
     },
     lastSentDate: {
       type: Date,
@@ -58,7 +56,6 @@ const ScheduleSchema = new Schema<ISchedule>(
     isActive: {
       type: Boolean,
       default: true,
-      index: true,
     },
   },
   {
