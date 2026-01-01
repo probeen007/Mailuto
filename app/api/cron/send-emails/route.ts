@@ -1,10 +1,12 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
-import Schedule from "@/models/Schedule";
-import Subscriber from "@/models/Subscriber";
-import Template from "@/models/Template";
 import { sendEmail, replaceTemplateVariables } from "@/lib/email";
 import { addMonths, addDays, format } from "date-fns";
+
+// Import models AFTER connecting to DB to ensure they're registered
+let Schedule: any;
+let Subscriber: any;
+let Template: any;
 
 export const dynamic = 'force-dynamic';
 // maxDuration: 10s (Hobby), 60s (Pro), 300s (Enterprise)
@@ -26,6 +28,13 @@ export async function GET(request: Request) {
 
   try {
     await connectDB();
+    
+    // Load models after DB connection
+    if (!Schedule) {
+      Schedule = (await import("@/models/Schedule")).default;
+      Subscriber = (await import("@/models/Subscriber")).default;
+      Template = (await import("@/models/Template")).default;
+    }
 
     const now = new Date();
     // Only process schedules that are due (not too far in the past to prevent stuck schedules)
