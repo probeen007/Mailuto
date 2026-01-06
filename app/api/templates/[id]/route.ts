@@ -96,7 +96,7 @@ export async function PUT(
 
     // Update template
     Object.assign(template, validatedData);
-    if (isBlockBased && validatedData.blocks) {
+    if (isBlockBased && 'blocks' in validatedData && validatedData.blocks) {
       template.body = ''; // Clear body for block templates
     }
     await template.save();
