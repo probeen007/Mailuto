@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { sendEmail } from "@/lib/email";
 import { replaceTemplateVariables } from "@/lib/template-utils";
+import { renderBlocksToHTML } from "@/lib/block-renderer";
+import type { EmailBlock } from "@/types/email-blocks";
 
 export async function POST(req: NextRequest) {
   try {
@@ -10,11 +12,25 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { email, subject, body } = await req.json();
+    const { email, subject, body, blocks, isBlockBased } = await req.json();
 
-    if (!email || !subject || !body) {
+    if (!email || !subject) {
       return NextResponse.json(
-        { error: "Email, subject, and body are required" },
+        { error: "Email and subject are required" },
+        { status: 400 }
+      );
+    }
+
+    if (isBlockBased && (!blocks || !Array.isArray(blocks))) {
+      return NextResponse.json(
+        { error: "Blocks array is required for block-based templates" },
+        { status: 400 }
+      );
+    }
+
+    if (!isBlockBased && !body) {
+      return NextResponse.json(
+        { error: "Body is required for text-based templates" },
         { status: 400 }
       );
     }
@@ -22,13 +38,24 @@ export async function POST(req: NextRequest) {
     // Sample data for test email
     const sampleData: Record<string, string> = {
       name: "John Doe",
+      email: email,
       service: "Premium Plan",
-      nextDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString(),
+      date: new Date().toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
+      nextDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }),
     };
 
-    // Replace variables in subject and body with sample data
+    // Replace variables in subject
     const processedSubject = replaceTemplateVariables(subject, sampleData);
-    const processedBody = replaceTemplateVariables(body, sampleData);
+    
+    // Generate email body based on template type
+    let processedBody: string;
+    if (isBlockBased) {
+      // Block-based template: render blocks to HTML
+      processedBody = renderBlocksToHTML(blocks as EmailBlock[], sampleData);
+    } else {
+      // Legacy text-based template
+      processedBody = replaceTemplateVariables(body, sampleData);
+    }
 
     // Send test email
     await sendEmail({

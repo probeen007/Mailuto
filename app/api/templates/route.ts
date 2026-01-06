@@ -4,13 +4,24 @@ import { connectDB } from "@/lib/db";
 import Template from "@/models/Template";
 import Subscriber from "@/models/Subscriber";
 import { z } from "zod";
+import type { EmailBlock } from "@/types/email-blocks";
 
 const DEFAULT_VARIABLES = ['name', 'service', 'nextDate'];
 
-const templateSchema = z.object({
+// Schema for legacy text-based templates
+const textTemplateSchema = z.object({
   name: z.string().min(1, "Template name is required"),
   subject: z.string().min(1, "Subject is required"),
   body: z.string().min(1, "Body is required"),
+  isBlockBased: z.literal(false).optional(),
+});
+
+// Schema for new block-based templates
+const blockTemplateSchema = z.object({
+  name: z.string().min(1, "Template name is required"),
+  subject: z.string().min(1, "Subject is required"),
+  blocks: z.array(z.any()).min(1, "At least one block is required"),
+  isBlockBased: z.literal(true),
 });
 
 async function getAllowedVariables(userId: string): Promise<string[]> {
@@ -63,31 +74,42 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const validatedData = templateSchema.parse(body);
+    const isBlockBased = body.isBlockBased === true;
+
+    // Validate based on template type
+    let validatedData;
+    if (isBlockBased) {
+      validatedData = blockTemplateSchema.parse(body);
+    } else {
+      validatedData = textTemplateSchema.parse(body);
+    }
 
     await connectDB();
-    
-    // Get allowed variables including custom ones
-    const allowedVars = await getAllowedVariables(session.user.id);
 
-    // Validate variables in subject and body
-    if (!validateTemplateVariables(validatedData.subject, allowedVars)) {
-      return NextResponse.json(
-        { error: `Invalid variables in subject. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
-        { status: 400 }
-      );
+    // For text-based templates, validate variables
+    if (!isBlockBased) {
+      const allowedVars = await getAllowedVariables(session.user.id);
+
+      if (!validateTemplateVariables(validatedData.subject, allowedVars)) {
+        return NextResponse.json(
+          { error: `Invalid variables in subject. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
+          { status: 400 }
+        );
+      }
+
+      if (!validateTemplateVariables(validatedData.body, allowedVars)) {
+        return NextResponse.json(
+          { error: `Invalid variables in body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
+          { status: 400 }
+        );
+      }
     }
 
-    if (!validateTemplateVariables(validatedData.body, allowedVars)) {
-      return NextResponse.json(
-        { error: `Invalid variables in body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
-        { status: 400 }
-      );
-    }
-
+    // Create template
     const template = await Template.create({
       ...validatedData,
       userId: session.user.id,
+      body: isBlockBased ? '' : validatedData.body, // Empty body for block templates
     });
 
     return NextResponse.json(template, { status: 201 });
@@ -95,6 +117,7 @@ export async function POST(request: NextRequest) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
+    console.error("Template creation error:", error);
     return NextResponse.json({ error: "Failed to create template" }, { status: 500 });
   }
 }

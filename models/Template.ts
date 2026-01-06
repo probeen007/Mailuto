@@ -1,11 +1,14 @@
 import mongoose, { Schema, model, models } from 'mongoose';
+import type { EmailBlock } from '@/types/email-blocks';
 
 export interface ITemplate {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
   name: string;
   subject: string;
-  body: string;
+  body: string; // Legacy text-based templates
+  blocks?: EmailBlock[]; // New block-based templates
+  isBlockBased?: boolean; // Flag to determine template type
   createdAt: Date;
   updatedAt: Date;
 }
@@ -29,7 +32,15 @@ const TemplateSchema = new Schema<ITemplate>(
     },
     body: {
       type: String,
-      required: true,
+      required: false, // Not required for block-based templates
+    },
+    blocks: {
+      type: Schema.Types.Mixed,
+      required: false,
+    },
+    isBlockBased: {
+      type: Boolean,
+      default: false,
     },
   },
   {

@@ -148,6 +148,7 @@ export default function TemplateModal({ template, onClose }: TemplateModalProps)
           email: testEmail,
           subject: formData.subject,
           body: formData.body,
+          isBlockBased: false,
         }),
       });
 

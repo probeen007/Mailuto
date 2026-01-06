@@ -6,6 +6,8 @@ import Subscriber from "@/models/Subscriber";
 import Template from "@/models/Template";
 import { sendEmail } from "@/lib/email";
 import { replaceTemplateVariables } from "@/lib/template-utils";
+import { renderBlocksToHTML } from "@/lib/block-renderer";
+import type { EmailBlock } from "@/types/email-blocks";
 
 export async function POST() {
   try {
@@ -51,7 +53,13 @@ export async function POST() {
         // Replace template variables
         const variables: Record<string, string> = {
           name: subscriber.name,
+          email: subscriber.email,
           service: subscriber.service,
+          date: new Date().toLocaleDateString('en-US', { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric' 
+          }),
           nextDate: subscriber.nextDate 
             ? new Date(subscriber.nextDate).toLocaleDateString('en-US', { 
                 year: 'numeric', 
@@ -63,7 +71,16 @@ export async function POST() {
         };
 
         const subject = replaceTemplateVariables(template.subject, variables);
-        const body = replaceTemplateVariables(template.body, variables);
+        
+        // Generate email body based on template type
+        let body: string;
+        if (template.isBlockBased && template.blocks) {
+          // Block-based template: render blocks to HTML
+          body = renderBlocksToHTML(template.blocks as EmailBlock[], variables);
+        } else {
+          // Legacy text-based template
+          body = replaceTemplateVariables(template.body, variables);
+        }
 
         // Send email
         const sent = await sendEmail({

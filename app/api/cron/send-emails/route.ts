@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { connectDB } from "@/lib/db";
 import { sendEmail, replaceTemplateVariables } from "@/lib/email";
+import { renderBlocksToHTML } from "@/lib/block-renderer";
+import type { EmailBlock } from "@/types/email-blocks";
 import { addMonths, addDays, format } from "date-fns";
 
 // Import models AFTER connecting to DB to ensure they're registered
@@ -85,22 +87,32 @@ export async function GET(request: Request) {
         // Prepare variables
         const variables: Record<string, string> = {
           name: subscriber.name,
+          email: subscriber.email,
           service: subscriber.service,
+          date: format(now, 'MMMM d, yyyy'),
           nextDate: subscriber.nextDate 
             ? format(new Date(subscriber.nextDate), 'MMMM d, yyyy')
             : format(nextSendDate, 'MMMM d, yyyy'),
           ...subscriber.customVariables,
         };
 
-        // Replace variables in template
+        // Generate email content based on template type
         const subject = replaceTemplateVariables(template.subject, variables);
-        const body = replaceTemplateVariables(template.body, variables);
+        let emailBody: string;
+
+        if (template.isBlockBased && template.blocks) {
+          // Block-based template: render blocks to HTML
+          emailBody = renderBlocksToHTML(template.blocks as EmailBlock[], variables);
+        } else {
+          // Legacy text-based template
+          emailBody = replaceTemplateVariables(template.body, variables);
+        }
 
         // Send email
         const success = await sendEmail({
           to: subscriber.email,
           subject,
-          body,
+          body: emailBody,
         });
 
         if (success) {

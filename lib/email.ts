@@ -28,7 +28,7 @@ export async function sendEmail({ to, subject, body }: EmailData): Promise<boole
       from: process.env.FROM_EMAIL || 'onboarding@resend.dev',
       to: [to],
       subject: subject,
-      text: body,
+      html: body,
     });
 
     if (error) {
