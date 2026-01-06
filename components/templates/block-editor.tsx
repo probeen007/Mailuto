@@ -32,7 +32,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
   // Update a block
   const updateBlock = (index: number, updates: Partial<EmailBlock>) => {
     const newBlocks = blocks.map((block, i) => 
-      i === index ? { ...block, ...updates } : block
+      i === index ? { ...block, ...updates } as EmailBlock : block
     );
     onChange(newBlocks);
   };
