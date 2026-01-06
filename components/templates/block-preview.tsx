@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { Monitor, Smartphone } from "lucide-react";
 import type { EmailBlock } from "@/types/email-blocks";
 
@@ -31,7 +31,7 @@ export default function BlockPreview({ blocks, subject }: BlockPreviewProps) {
   const [loading, setLoading] = useState(false);
 
   // Generate preview HTML
-  const generatePreview = async () => {
+  const generatePreview = useCallback(async () => {
     setLoading(true);
     try {
       const response = await fetch('/api/templates/preview', {
@@ -49,7 +49,7 @@ export default function BlockPreview({ blocks, subject }: BlockPreviewProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [blocks]);
 
   // Auto-generate preview when blocks change
   useEffect(() => {
@@ -58,7 +58,7 @@ export default function BlockPreview({ blocks, subject }: BlockPreviewProps) {
     } else {
       setPreviewHtml('');
     }
-  }, [blocks]);
+  }, [blocks, generatePreview]);
 
   return (
     <div className="space-y-4">
@@ -123,9 +123,9 @@ export default function BlockPreview({ blocks, subject }: BlockPreviewProps) {
       <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs">
         <p className="text-blue-900 font-medium mb-1">📋 Preview uses sample data:</p>
         <ul className="text-blue-700 space-y-0.5">
-          <li>• name = "John Doe"</li>
-          <li>• email = "john@example.com"</li>
-          <li>• service = "Premium Plan"</li>
+          <li>• name = &quot;John Doe&quot;</li>
+          <li>• email = &quot;john@example.com&quot;</li>
+          <li>• service = &quot;Premium Plan&quot;</li>
           <li>• date = Current date</li>
         </ul>
       </div>
