@@ -97,7 +97,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if (!validateTemplateVariables(validatedData.body, allowedVars)) {
+      if ('body' in validatedData && !validateTemplateVariables(validatedData.body, allowedVars)) {
         return NextResponse.json(
           { error: `Invalid variables in body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
           { status: 400 }
@@ -109,7 +109,7 @@ export async function POST(request: NextRequest) {
     const template = await Template.create({
       ...validatedData,
       userId: session.user.id,
-      body: isBlockBased ? '' : validatedData.body, // Empty body for block templates
+      body: isBlockBased ? '' : ('body' in validatedData ? validatedData.body : ''), // Empty body for block templates
     });
 
     return NextResponse.json(template, { status: 201 });
