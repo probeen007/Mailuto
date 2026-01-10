@@ -11,6 +11,7 @@ interface BlockEditorProps {
 
 export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [expandedBlock, setExpandedBlock] = useState<string | null>(null);
 
   // Generate unique ID for new blocks
   const generateId = () => `block-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
@@ -71,35 +72,57 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             <p className="text-gray-600 mb-4">No blocks yet. Add your first block below.</p>
           </div>
         ) : (
-          blocks.map((block, index) => (
-            <div
-              key={block.id}
-              draggable
-              onDragStart={() => handleDragStart(index)}
-              onDragOver={(e) => handleDragOver(e, index)}
-              onDragEnd={handleDragEnd}
-              className={`bg-white border rounded-lg p-4 ${
-                draggedIndex === index ? 'opacity-50' : ''
-              }`}
-            >
-              <div className="flex items-start gap-3">
-                <button className="cursor-move mt-1 text-gray-400 hover:text-gray-600">
-                  <GripVertical className="w-5 h-5" />
-                </button>
-                
-                <div className="flex-1">
-                  {renderBlockEditor(block, index, updateBlock)}
+          blocks.map((block, index) => {
+            const isExpanded = expandedBlock === block.id;
+            return (
+              <div
+                key={block.id}
+                draggable
+                onDragStart={() => handleDragStart(index)}
+                onDragOver={(e) => handleDragOver(e, index)}
+                onDragEnd={handleDragEnd}
+                className={`bg-white border rounded-lg ${
+                  draggedIndex === index ? 'opacity-50' : ''
+                } ${isExpanded ? 'border-primary-400' : ''}`}
+              >
+                {/* Collapsed View */}
+                <div className="flex items-center gap-2 p-2.5">
+                  <button
+                    type="button"
+                    className="cursor-move text-gray-400 hover:text-gray-600"
+                  >
+                    <GripVertical className="w-4 h-4" />
+                  </button>
+                  
+                  <button
+                    type="button"
+                    onClick={() => setExpandedBlock(isExpanded ? null : block.id)}
+                    className="flex-1 flex items-center gap-2 text-left hover:bg-gray-50 rounded px-2 py-1.5 transition-colors"
+                  >
+                    {getBlockIcon(block.type)}
+                    <span className="font-medium text-sm text-gray-800">
+                      {getBlockLabel(block)}
+                    </span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => removeBlock(index)}
+                    className="text-red-500 hover:text-red-700 p-1"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
 
-                <button
-                  onClick={() => removeBlock(index)}
-                  className="text-red-500 hover:text-red-700 mt-1"
-                >
-                  <Trash2 className="w-5 h-5" />
-                </button>
+                {/* Expanded Editor */}
+                {isExpanded && (
+                  <div className="border-t p-4 bg-gray-50">
+                    {renderBlockEditor(block, index, updateBlock)}
+                  </div>
+                )}
               </div>
-            </div>
-          ))
+            );
+          })
         )}
       </div>
 
@@ -191,13 +214,6 @@ function renderBlockEditor(
 function TextBlockEditor({ block, onChange }: { block: TextBlock; onChange: (updates: Partial<TextBlock>) => void }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-8 h-8 rounded bg-blue-100 flex items-center justify-center">
-          <Type className="w-4 h-4 text-blue-600" />
-        </div>
-        <span className="font-semibold text-gray-800">Text Block</span>
-      </div>
-      
       <div>
         <label className="text-xs font-medium text-gray-700 mb-1 block">Content</label>
         <textarea
@@ -281,13 +297,6 @@ function ImageBlockEditor({ block, onChange }: { block: ImageBlock; onChange: (u
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-8 h-8 rounded bg-purple-100 flex items-center justify-center">
-          <Image className="w-4 h-4 text-purple-600" />
-        </div>
-        <span className="font-semibold text-gray-800">Image Block</span>
-      </div>
-
       <div>
         <label className="text-xs font-medium text-gray-700 mb-1 block">Image URL <span className="text-red-500">*</span></label>
         <input
@@ -358,13 +367,6 @@ function ImageBlockEditor({ block, onChange }: { block: ImageBlock; onChange: (u
 function ButtonBlockEditor({ block, onChange }: { block: ButtonBlock; onChange: (updates: Partial<ButtonBlock>) => void }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-8 h-8 rounded bg-green-100 flex items-center justify-center">
-          <MousePointer className="w-4 h-4 text-green-600" />
-        </div>
-        <span className="font-semibold text-gray-800">Button Block</span>
-      </div>
-
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
         <div>
           <label className="text-xs font-medium text-gray-700 mb-1 block">Button Text <span className="text-red-500">*</span></label>
@@ -464,13 +466,6 @@ function SpacerBlockEditor({ block, onChange }: { block: SpacerBlock; onChange: 
 function DividerBlockEditor({ block, onChange }: { block: DividerBlock; onChange: (updates: Partial<DividerBlock>) => void }) {
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2 mb-1">
-        <div className="w-8 h-8 rounded bg-gray-100 flex items-center justify-center">
-          <AlignJustify className="w-4 h-4 text-gray-600" />
-        </div>
-        <span className="font-semibold text-gray-800">Divider Block</span>
-      </div>
-
       <div className="grid grid-cols-2 gap-2">
         <div>
           <label className="text-xs font-medium text-gray-700 mb-1 block">Color</label>
@@ -553,5 +548,39 @@ function createDefaultBlock(type: EmailBlock['type'], order: number): EmailBlock
         color: '#dddddd',
         thickness: 1,
       };
+  }
+}
+
+// Helper: Get block icon
+function getBlockIcon(type: EmailBlock['type']) {
+  const iconClass = "w-4 h-4";
+  switch (type) {
+    case 'text':
+      return <div className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center"><Type className={iconClass + " text-blue-600"} /></div>;
+    case 'image':
+      return <div className="w-6 h-6 rounded bg-purple-100 flex items-center justify-center"><Image className={iconClass + " text-purple-600"} /></div>;
+    case 'button':
+      return <div className="w-6 h-6 rounded bg-green-100 flex items-center justify-center"><MousePointer className={iconClass + " text-green-600"} /></div>;
+    case 'spacer':
+      return <div className="w-6 h-6 rounded bg-orange-100 flex items-center justify-center"><Minus className={iconClass + " text-orange-600"} /></div>;
+    case 'divider':
+      return <div className="w-6 h-6 rounded bg-gray-100 flex items-center justify-center"><AlignJustify className={iconClass + " text-gray-600"} /></div>;
+  }
+}
+
+// Helper: Get block label (preview of content)
+function getBlockLabel(block: EmailBlock): string {
+  switch (block.type) {
+    case 'text':
+      const preview = block.content.substring(0, 50);
+      return preview + (block.content.length > 50 ? '...' : '');
+    case 'image':
+      return block.imageUrl ? `Image: ${block.altText || 'No alt text'}` : 'Image (no URL)';
+    case 'button':
+      return `Button: ${block.label}`;
+    case 'spacer':
+      return `Spacer (${block.height}px)`;
+    case 'divider':
+      return `Divider (${block.thickness}px)`;
   }
 }

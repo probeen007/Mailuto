@@ -67,6 +67,7 @@ export default function BlockPreview({ blocks, subject }: BlockPreviewProps) {
         <h3 className="font-medium text-gray-900">Preview</h3>
         <div className="flex gap-2">
           <button
+            type="button"
             onClick={() => setViewMode('desktop')}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
               viewMode === 'desktop'
@@ -78,6 +79,7 @@ export default function BlockPreview({ blocks, subject }: BlockPreviewProps) {
             Desktop
           </button>
           <button
+            type="button"
             onClick={() => setViewMode('mobile')}
             className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm ${
               viewMode === 'mobile'
