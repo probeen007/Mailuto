@@ -112,7 +112,8 @@ export async function PUT(
       template.isHtmlMode = false;
     } else if (isHtmlMode) {
       // Ensure htmlBody exists for HTML templates
-      if (!validatedData.htmlBody && !template.htmlBody) {
+      const hasHtmlBody = ('htmlBody' in validatedData && validatedData.htmlBody) || template.htmlBody;
+      if (!hasHtmlBody) {
         return NextResponse.json(
           { error: "HTML templates require htmlBody content" },
           { status: 400 }
@@ -123,7 +124,8 @@ export async function PUT(
       template.blocks = undefined;
     } else {
       // Ensure body exists for text templates
-      if (!validatedData.body && !template.body) {
+      const hasBody = ('body' in validatedData && validatedData.body) || template.body;
+      if (!hasBody) {
         return NextResponse.json(
           { error: "Text templates require body content" },
           { status: 400 }

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, GripVertical, Trash2, Type, Image, MousePointer, Minus, AlignJustify } from "lucide-react";
+import { Plus, GripVertical, Trash2, Type, Image as ImageIcon, MousePointer, Minus, AlignJustify } from "lucide-react";
 import type { EmailBlock, TextBlock, ImageBlock, ButtonBlock, SpacerBlock, DividerBlock } from "@/types/email-blocks";
 
 interface BlockEditorProps {
@@ -143,7 +143,7 @@ export default function BlockEditor({ blocks, onChange }: BlockEditorProps) {
             onClick={() => addBlock('image')}
             className="flex flex-col sm:flex-row items-center justify-center gap-1.5 px-3 py-2.5 bg-white hover:bg-purple-50 border-2 border-gray-200 hover:border-purple-400 rounded-lg text-xs sm:text-sm font-medium text-gray-700 hover:text-purple-700 transition-all"
           >
-            <Image className="w-4 h-4" />
+            <ImageIcon className="w-4 h-4" />
             <span>Image</span>
           </button>
           <button
@@ -558,7 +558,7 @@ function getBlockIcon(type: EmailBlock['type']) {
     case 'text':
       return <div className="w-6 h-6 rounded bg-blue-100 flex items-center justify-center"><Type className={iconClass + " text-blue-600"} /></div>;
     case 'image':
-      return <div className="w-6 h-6 rounded bg-purple-100 flex items-center justify-center"><Image className={iconClass + " text-purple-600"} /></div>;
+      return <div className="w-6 h-6 rounded bg-purple-100 flex items-center justify-center"><ImageIcon className={iconClass + " text-purple-600"} /></div>;
     case 'button':
       return <div className="w-6 h-6 rounded bg-green-100 flex items-center justify-center"><MousePointer className={iconClass + " text-green-600"} /></div>;
     case 'spacer':
