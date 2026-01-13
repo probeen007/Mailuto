@@ -3,10 +3,13 @@ import mongoose, { Schema, model, models } from 'mongoose';
 export interface ISubscriber {
   _id: mongoose.Types.ObjectId;
   userId: mongoose.Types.ObjectId;
+  groupId?: mongoose.Types.ObjectId; // NEW: Group assignment
   name: string;
   email: string;
   service: string;
   nextDate?: Date;
+  nextSendDate?: Date; // NEW: When to send next email
+  isActive?: boolean; // NEW: Can pause individual subscriber
   customVariables?: Record<string, string>;
   createdAt: Date;
   updatedAt: Date;
@@ -18,6 +21,13 @@ const SubscriberSchema = new Schema<ISubscriber>(
       type: Schema.Types.ObjectId,
       ref: 'User',
       required: true,
+      index: true,
+    },
+    groupId: {
+      type: Schema.Types.ObjectId,
+      ref: 'Group',
+      required: false,
+      index: true,
     },
     name: {
       type: String,
@@ -38,6 +48,15 @@ const SubscriberSchema = new Schema<ISubscriber>(
     nextDate: {
       type: Date,
       required: false,
+    },
+    nextSendDate: {
+      type: Date,
+      required: false,
+      index: true,
+    },
+    isActive: {
+      type: Boolean,
+      default: true,
     },
     customVariables: {
       type: Object,

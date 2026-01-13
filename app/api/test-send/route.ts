@@ -1,8 +1,8 @@
 import { NextResponse } from "next/server";
 import { auth } from "@/auth";
 import { connectDB } from "@/lib/db";
-import Schedule from "@/models/Schedule";
 import Subscriber from "@/models/Subscriber";
+import Group from "@/models/Group";
 import Template from "@/models/Template";
 import { sendEmail } from "@/lib/email";
 import { replaceTemplateVariables } from "@/lib/template-utils";
@@ -18,15 +18,16 @@ export async function POST() {
 
     await connectDB();
 
-    // Get all active schedules for this user
-    const schedules = await Schedule.find({ 
+    // Get all active subscribers with groups for this user
+    const subscribers = await Subscriber.find({ 
       userId: session.user.id,
-      isActive: true 
-    }).populate('subscriberId').populate('templateId');
+      isActive: true,
+      groupId: { $exists: true, $ne: null }
+    }).populate('groupId').limit(50); // Limit to 50 for testing
 
-    if (schedules.length === 0) {
+    if (subscribers.length === 0) {
       return NextResponse.json({ 
-        message: "No active schedules found",
+        message: "No active subscribers with groups found",
         sent: 0
       });
     }
@@ -35,26 +36,53 @@ export async function POST() {
     let successCount = 0;
     let failCount = 0;
 
-    for (const schedule of schedules) {
-      const subscriber = schedule.subscriberId as any;
-      const template = schedule.templateId as any;
-
-      if (!subscriber || !template) {
+    for (const subscriber of subscribers) {
+      // Validate subscriber email
+      if (!subscriber.email || !subscriber.email.includes('@')) {
         results.push({
-          schedule: schedule._id,
+          subscriber: subscriber.email || 'unknown',
           status: "error",
-          message: "Missing subscriber or template"
+          message: "Invalid email address"
+        });
+        failCount++;
+        continue;
+      }
+      
+      const group = subscriber.groupId as any;
+
+      if (!group || !group.isActive) {
+        results.push({
+          subscriber: subscriber.email,
+          status: "error",
+          message: "No active group assigned"
+        });
+        failCount++;
+        continue;
+      }
+
+      const template = await Template.findById(group.templateId);
+
+      if (!template) {
+        results.push({
+          subscriber: subscriber.email,
+          status: "error",
+          message: "Template not found"
         });
         failCount++;
         continue;
       }
 
       try {
-        // Replace template variables
+        // Log template info for debugging
+        console.log(`Processing template: ${template.name} (ID: ${template._id})`);
+        console.log(`Template flags: isHtmlMode=${template.isHtmlMode}, isBlockBased=${template.isBlockBased}`);
+        console.log(`Template content: hasHtmlBody=${!!template.htmlBody}, hasBlocks=${!!template.blocks}, blocksLength=${template.blocks?.length || 0}, hasBody=${!!template.body}`);
+        
+        // Replace template variables with safe handling
         const variables: Record<string, string> = {
-          name: subscriber.name,
-          email: subscriber.email,
-          service: subscriber.service,
+          name: subscriber.name || '',
+          email: subscriber.email || '',
+          service: subscriber.service || '',
           date: new Date().toLocaleDateString('en-US', { 
             year: 'numeric', 
             month: 'long', 
@@ -67,18 +95,37 @@ export async function POST() {
                 day: 'numeric' 
               })
             : 'Not set',
-          ...subscriber.customVariables,
         };
+        
+        // Add custom variables safely
+        if (subscriber.customVariables && typeof subscriber.customVariables === 'object') {
+          Object.assign(variables, subscriber.customVariables);
+        }
 
         const subject = replaceTemplateVariables(template.subject, variables);
         
         // Generate email body based on template type
         let body: string;
-        if (template.isBlockBased && template.blocks) {
-          // Block-based template: render blocks to HTML
+        
+        // Priority 1: HTML mode templates
+        if (template.isHtmlMode) {
+          if (!template.htmlBody) {
+            throw new Error(`HTML template "${template.name}" has no HTML body content`);
+          }
+          body = replaceTemplateVariables(template.htmlBody, variables);
+        } 
+        // Priority 2: Block-based templates
+        else if (template.isBlockBased) {
+          if (!template.blocks || !Array.isArray(template.blocks) || template.blocks.length === 0) {
+            throw new Error(`Block template "${template.name}" has no blocks defined`);
+          }
           body = renderBlocksToHTML(template.blocks as EmailBlock[], variables);
-        } else {
-          // Legacy text-based template
+        } 
+        // Priority 3: Legacy text-based templates
+        else {
+          if (!template.body || template.body.trim() === '') {
+            throw new Error(`Text template "${template.name}" has no body content`);
+          }
           body = replaceTemplateVariables(template.body, variables);
         }
 
@@ -91,15 +138,14 @@ export async function POST() {
 
         if (sent) {
           results.push({
-            schedule: schedule._id,
             subscriber: subscriber.email,
+            group: group.name,
             template: template.name,
             status: "success"
           });
           successCount++;
         } else {
           results.push({
-            schedule: schedule._id,
             subscriber: subscriber.email,
             status: "error",
             message: "Email sending failed"
@@ -108,7 +154,7 @@ export async function POST() {
         }
       } catch (error) {
         results.push({
-          schedule: schedule._id,
+          subscriber: subscriber.email,
           status: "error",
           message: error instanceof Error ? error.message : "Unknown error"
         });
@@ -118,7 +164,7 @@ export async function POST() {
 
     return NextResponse.json({
       message: `Test complete: ${successCount} sent, ${failCount} failed`,
-      totalSchedules: schedules.length,
+      totalSubscribers: subscribers.length,
       successCount,
       failCount,
       results

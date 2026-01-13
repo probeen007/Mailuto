@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Users, Calendar, LogOut, LayoutDashboard, Send, Mail } from "lucide-react";
+import { Users, LogOut, LayoutDashboard, Send, Mail, FolderKanban } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 interface DashboardNavProps {
@@ -19,9 +19,9 @@ export default function DashboardNav({ user }: DashboardNavProps) {
 
   const navItems = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard/groups", label: "Groups", icon: FolderKanban },
     { href: "/dashboard/subscribers", label: "Subscribers", icon: Users },
     { href: "/dashboard/templates", label: "Templates", icon: Mail },
-    { href: "/dashboard/schedules", label: "Schedules", icon: Calendar },
     { href: "/dashboard/test", label: "Test", icon: Send },
   ];
 

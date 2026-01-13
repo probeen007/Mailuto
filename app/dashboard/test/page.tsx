@@ -39,8 +39,11 @@ export default function TestPage() {
         <div className="mb-6">
           <h2 className="text-xl font-semibold text-gray-900 mb-2">Manual Trigger</h2>
           <p className="text-sm text-gray-600 mb-4">
-            This will immediately send emails to all active schedules, regardless of their timing.
+            This will immediately send emails to all active subscribers in groups.
             Use this to test if your email automation is working correctly.
+            <span className="block mt-2 text-primary-600 font-medium">
+              Limited to first 50 subscribers for testing purposes.
+            </span>
           </p>
           
           <button

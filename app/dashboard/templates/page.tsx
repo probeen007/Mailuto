@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { Plus, Trash2, Edit, Eye, Layers, FileText } from "lucide-react";
+import { Plus, Trash2, Edit, Eye, Layers, FileText, Code } from "lucide-react";
 import TemplateModal from "@/components/templates/template-modal";
 import BlockTemplateModal from "@/components/templates/block-template-modal";
+import HtmlTemplateModal from "@/components/templates/html-template-modal";
 import TemplatePreview from "@/components/templates/template-preview";
 
 interface Template {
@@ -11,8 +12,10 @@ interface Template {
   name: string;
   subject: string;
   body: string;
+  htmlBody?: string;
   blocks?: any[];
   isBlockBased?: boolean;
+  isHtmlMode?: boolean;
   createdAt: string;
 }
 
@@ -20,6 +23,7 @@ export default function TemplatesPage() {
   const [templates, setTemplates] = useState<Template[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isBlockModalOpen, setIsBlockModalOpen] = useState(false);
+  const [isHtmlModalOpen, setIsHtmlModalOpen] = useState(false);
   const [editingTemplate, setEditingTemplate] = useState<Template | null>(null);
   const [previewTemplate, setPreviewTemplate] = useState<Template | null>(null);
   const [loading, setLoading] = useState(true);
@@ -57,7 +61,9 @@ export default function TemplatesPage() {
 
   const handleEdit = (template: Template) => {
     setEditingTemplate(template);
-    if (template.isBlockBased) {
+    if (template.isHtmlMode) {
+      setIsHtmlModalOpen(true);
+    } else if (template.isBlockBased) {
       setIsBlockModalOpen(true);
     } else {
       setIsModalOpen(true);
@@ -67,6 +73,7 @@ export default function TemplatesPage() {
   const handleModalClose = () => {
     setIsModalOpen(false);
     setIsBlockModalOpen(false);
+    setIsHtmlModalOpen(false);
     setEditingTemplate(null);
     fetchTemplates();
   };
@@ -84,20 +91,32 @@ export default function TemplatesPage() {
               setEditingTemplate(null);
               setIsModalOpen(true);
             }} 
-            className="flex items-center gap-2 px-4 md:px-5 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold text-gray-700 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow transform hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold text-gray-700 bg-white border-2 border-gray-300 hover:border-gray-400 hover:bg-gray-50 transition-all duration-200 shadow-sm hover:shadow"
           >
-            <FileText className="w-4 h-4 md:w-5 md:h-5" />
-            <span className="hidden sm:inline">Text Template</span>
+            <FileText className="w-4 h-4" />
+            <span className="hidden sm:inline">Text</span>
+          </button>
+          <button 
+            onClick={() => {
+              setEditingTemplate(null);
+              setIsHtmlModalOpen(true);
+            }} 
+            className="flex items-center gap-2 px-3 md:px-4 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 transition-all duration-200 shadow-md hover:shadow-lg"
+          >
+            <Code className="w-4 h-4" />
+            <span className="hidden sm:inline">Paste HTML</span>
+            <span className="sm:hidden">HTML</span>
           </button>
           <button 
             onClick={() => {
               setEditingTemplate(null);
               setIsBlockModalOpen(true);
             }} 
-            className="flex items-center gap-2 px-4 md:px-6 py-2.5 md:py-3 rounded-lg text-sm md:text-base font-semibold text-white bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-700 hover:to-accent-700 transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 active:scale-95"
+            className="flex items-center gap-2 px-3 md:px-5 py-2 md:py-2.5 rounded-lg text-xs md:text-sm font-semibold text-white bg-gradient-to-r from-primary-600 to-accent-600 hover:from-primary-700 hover:to-accent-700 transition-all duration-200 shadow-lg hover:shadow-xl"
           >
             <Layers className="w-4 h-4 md:w-5 md:h-5" />
-            <span>Block Template</span>
+            <span className="hidden sm:inline">Visual Block</span>
+            <span className="sm:hidden">Block</span>
           </button>
         </div>
       </div>
@@ -153,7 +172,12 @@ export default function TemplatesPage() {
               <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
                 <div className="flex-1">
                   <div className="flex items-center gap-2 mb-2">
-                    {template.isBlockBased ? (
+                    {template.isHtmlMode ? (
+                      <span className="inline-flex items-center gap-1 px-2 py-1 bg-gradient-to-r from-purple-100 to-pink-100 text-purple-700 text-xs font-semibold rounded">
+                        <Code className="w-3 h-3" />
+                        HTML
+                      </span>
+                    ) : template.isBlockBased ? (
                       <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-100 text-purple-700 text-xs font-semibold rounded">
                         <Layers className="w-3 h-3" />
                         Block
@@ -170,7 +194,13 @@ export default function TemplatesPage() {
                     <span className="text-xs font-semibold text-gray-500 uppercase">Subject:</span>
                     <p className="text-gray-700">{template.subject}</p>
                   </div>
-                  {!template.isBlockBased && template.body && (
+                  {template.isHtmlMode && template.htmlBody && (
+                    <div>
+                      <span className="text-xs font-semibold text-gray-500 uppercase">HTML Template:</span>
+                      <p className="text-gray-600 text-sm">Custom HTML design</p>
+                    </div>
+                  )}
+                  {!template.isBlockBased && !template.isHtmlMode && template.body && (
                     <div>
                       <span className="text-xs font-semibold text-gray-500 uppercase">Body Preview:</span>
                       <p className="text-gray-600 text-sm line-clamp-2">{template.body}</p>
@@ -214,6 +244,13 @@ export default function TemplatesPage() {
 
       {isModalOpen && (
         <TemplateModal
+          template={editingTemplate}
+          onClose={handleModalClose}
+        />
+      )}
+
+      {isHtmlModalOpen && (
+        <HtmlTemplateModal
           template={editingTemplate}
           onClose={handleModalClose}
         />

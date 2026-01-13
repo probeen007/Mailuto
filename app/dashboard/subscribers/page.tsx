@@ -9,7 +9,10 @@ interface Subscriber {
   name: string;
   email: string;
   service: string;
+  groupId?: string;
   nextDate?: string;
+  nextSendDate?: string;
+  isActive?: boolean;
   customVariables?: Record<string, string>;
   createdAt: string;
 }

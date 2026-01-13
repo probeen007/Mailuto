@@ -12,8 +12,12 @@ const DEFAULT_VARIABLES = ['name', 'service', 'nextDate'];
 const textTemplateSchema = z.object({
   name: z.string().min(1, "Template name is required"),
   subject: z.string().min(1, "Subject is required"),
-  body: z.string().min(1, "Body is required"),
+  body: z.string().min(1, "Body is required").optional(),
+  htmlBody: z.string().min(1, "HTML body is required").optional(),
   isBlockBased: z.literal(false).optional(),
+  isHtmlMode: z.boolean().optional(),
+}).refine((data) => data.body || data.htmlBody, {
+  message: "Either body or htmlBody is required",
 });
 
 // Schema for new block-based templates
@@ -75,6 +79,7 @@ export async function POST(request: NextRequest) {
 
     const body = await request.json();
     const isBlockBased = body.isBlockBased === true;
+    const isHtmlMode = body.isHtmlMode === true;
 
     // Validate based on template type
     let validatedData;
@@ -86,7 +91,7 @@ export async function POST(request: NextRequest) {
 
     await connectDB();
 
-    // For text-based templates, validate variables
+    // For text-based and HTML templates, validate variables
     if (!isBlockBased) {
       const allowedVars = await getAllowedVariables(session.user.id);
 
@@ -97,11 +102,20 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      if ('body' in validatedData && !validateTemplateVariables(validatedData.body, allowedVars)) {
-        return NextResponse.json(
-          { error: `Invalid variables in body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
-          { status: 400 }
-        );
+      if (isHtmlMode && 'htmlBody' in validatedData && validatedData.htmlBody) {
+        if (!validateTemplateVariables(validatedData.htmlBody, allowedVars)) {
+          return NextResponse.json(
+            { error: `Invalid variables in HTML body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
+            { status: 400 }
+          );
+        }
+      } else if ('body' in validatedData && validatedData.body) {
+        if (!validateTemplateVariables(validatedData.body, allowedVars)) {
+          return NextResponse.json(
+            { error: `Invalid variables in body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
+            { status: 400 }
+          );
+        }
       }
     }
 
@@ -109,13 +123,17 @@ export async function POST(request: NextRequest) {
     const template = await Template.create({
       ...validatedData,
       userId: session.user.id,
-      body: isBlockBased ? '' : ('body' in validatedData ? validatedData.body : ''), // Empty body for block templates
+      body: isBlockBased ? '' : (('body' in validatedData && validatedData.body) ? validatedData.body : ''),
+      htmlBody: isHtmlMode && 'htmlBody' in validatedData ? validatedData.htmlBody : undefined,
+      isHtmlMode: isHtmlMode,
     });
 
     return NextResponse.json(template, { status: 201 });
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      // Convert Zod errors to a readable string
+      const errorMessage = error.errors.map(err => err.message).join(', ');
+      return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
     console.error("Template creation error:", error);
     return NextResponse.json({ error: "Failed to create template" }, { status: 500 });

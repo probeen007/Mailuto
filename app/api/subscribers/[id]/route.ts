@@ -8,7 +8,10 @@ const subscriberSchema = z.object({
   name: z.string().min(1, "Name is required"),
   email: z.string().email("Invalid email address"),
   service: z.string().min(1, "Service is required"),
+  groupId: z.string().optional(), // NEW
   nextDate: z.string().optional(),
+  nextSendDate: z.string().optional(), // NEW
+  isActive: z.boolean().optional(), // NEW
   customVariables: z.record(z.string()).optional(),
 });
 
@@ -23,22 +26,48 @@ export async function PUT(
     }
 
     const body = await request.json();
-    console.log("PUT body received:", JSON.stringify(body));
-    
     const validatedData = subscriberSchema.parse(body);
-    console.log("PUT validated data:", JSON.stringify(validatedData));
 
     await connectDB();
+    
+    // Build update object, only including dates that are valid
+    const updateData: any = {
+      name: validatedData.name,
+      email: validatedData.email,
+      service: validatedData.service,
+      groupId: validatedData.groupId || null,
+      isActive: validatedData.isActive !== undefined ? validatedData.isActive : true,
+      customVariables: validatedData.customVariables || {},
+    };
+    
+    // Handle dates - only update if provided and valid
+    if (validatedData.nextDate) {
+      try {
+        updateData.nextDate = new Date(validatedData.nextDate);
+        if (isNaN(updateData.nextDate.getTime())) {
+          return NextResponse.json({ error: "Invalid nextDate format" }, { status: 400 });
+        }
+      } catch (e) {
+        return NextResponse.json({ error: "Invalid nextDate format" }, { status: 400 });
+      }
+    }
+    
+    if (validatedData.nextSendDate) {
+      try {
+        updateData.nextSendDate = new Date(validatedData.nextSendDate);
+        if (isNaN(updateData.nextSendDate.getTime())) {
+          return NextResponse.json({ error: "Invalid nextSendDate format" }, { status: 400 });
+        }
+      } catch (e) {
+        return NextResponse.json({ error: "Invalid nextSendDate format" }, { status: 400 });
+      }
+    }
+    
     const subscriber = await Subscriber.findOneAndUpdate(
       { _id: params.id, userId: session.user.id },
-      {
-        ...validatedData,
-        nextDate: validatedData.nextDate ? new Date(validatedData.nextDate) : undefined,
-      },
+      updateData,
       { new: true }
     );
-    
-    console.log("PUT updated subscriber:", JSON.stringify(subscriber));
 
     if (!subscriber) {
       return NextResponse.json({ error: "Subscriber not found" }, { status: 404 });
@@ -48,7 +77,8 @@ export async function PUT(
   } catch (error) {
     console.error("PUT /api/subscribers error:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      const errorMessage = error.errors.map(err => err.message).join(', ');
+      return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
     return NextResponse.json({ error: "Failed to update subscriber" }, { status: 500 });
   }

@@ -157,6 +157,8 @@ function renderBlock(block: EmailBlock, variables: Record<string, string>): stri
  * Escapes HTML to prevent XSS
  */
 function escapeHtml(text: string): string {
+  if (text == null) return '';
+  const str = String(text);
   const map: Record<string, string> = {
     '&': '&amp;',
     '<': '&lt;',
@@ -164,7 +166,7 @@ function escapeHtml(text: string): string {
     '"': '&quot;',
     "'": '&#039;',
   };
-  return text.replace(/[&<>"']/g, (char) => map[char]);
+  return str.replace(/[&<>"']/g, (char) => map[char]);
 }
 
 /**

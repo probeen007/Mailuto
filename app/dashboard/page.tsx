@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { Users, Mail, Calendar, Plus } from "lucide-react";
+import { Users, Mail, FolderKanban, Plus } from "lucide-react";
 
 export default function DashboardPage() {
   return (
@@ -10,10 +10,22 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid md:grid-cols-3 gap-6 mb-8">
-        <Link href="/dashboard/subscribers" className="card hover:scale-105 transition-transform duration-200 cursor-pointer">
+        <Link href="/dashboard/groups" className="card hover:scale-105 transition-transform duration-200 cursor-pointer">
           <div className="flex items-center gap-4">
             <div className="p-3 bg-primary-100 rounded-lg">
-              <Users className="w-6 h-6 text-primary-600" />
+              <FolderKanban className="w-6 h-6 text-primary-600" />
+            </div>
+            <div>
+              <h3 className="font-semibold text-gray-900">Groups</h3>
+              <p className="text-sm text-gray-600">Organize subscribers</p>
+            </div>
+          </div>
+        </Link>
+
+        <Link href="/dashboard/subscribers" className="card hover:scale-105 transition-transform duration-200 cursor-pointer">
+          <div className="flex items-center gap-4">
+            <div className="p-3 bg-accent-100 rounded-lg">
+              <Users className="w-6 h-6 text-accent-600" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">Subscribers</h3>
@@ -24,24 +36,12 @@ export default function DashboardPage() {
 
         <Link href="/dashboard/templates" className="card hover:scale-105 transition-transform duration-200 cursor-pointer">
           <div className="flex items-center gap-4">
-            <div className="p-3 bg-accent-100 rounded-lg">
-              <Mail className="w-6 h-6 text-accent-600" />
+            <div className="p-3 bg-green-100 rounded-lg">
+              <Mail className="w-6 h-6 text-green-600" />
             </div>
             <div>
               <h3 className="font-semibold text-gray-900">Templates</h3>
               <p className="text-sm text-gray-600">Create email templates</p>
-            </div>
-          </div>
-        </Link>
-
-        <Link href="/dashboard/schedules" className="card hover:scale-105 transition-transform duration-200 cursor-pointer">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-green-100 rounded-lg">
-              <Calendar className="w-6 h-6 text-green-600" />
-            </div>
-            <div>
-              <h3 className="font-semibold text-gray-900">Schedules</h3>
-              <p className="text-sm text-gray-600">Automate email sending</p>
             </div>
           </div>
         </Link>
@@ -52,20 +52,24 @@ export default function DashboardPage() {
         <ol className="space-y-3 mb-6">
           <li className="flex items-start gap-3">
             <span className="flex-shrink-0 w-6 h-6 bg-white text-primary-600 rounded-full flex items-center justify-center text-sm font-bold">1</span>
-            <span>Add subscribers with their contact information and service details</span>
-          </li>
-          <li className="flex items-start gap-3">
-            <span className="flex-shrink-0 w-6 h-6 bg-white text-primary-600 rounded-full flex items-center justify-center text-sm font-bold">2</span>
             <span>Create email templates using variables like {`{{name}}`}, {`{{email}}`}, {`{{service}}`}, {`{{nextDate}}`}</span>
           </li>
           <li className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 bg-white text-primary-600 rounded-full flex items-center justify-center text-sm font-bold">2</span>
+            <span>Create groups with your templates and set email sending intervals</span>
+          </li>
+          <li className="flex items-start gap-3">
             <span className="flex-shrink-0 w-6 h-6 bg-white text-primary-600 rounded-full flex items-center justify-center text-sm font-bold">3</span>
-            <span>Set up schedules to automatically send personalized emails</span>
+            <span>Add subscribers to groups individually or bulk import via CSV</span>
+          </li>
+          <li className="flex items-start gap-3">
+            <span className="flex-shrink-0 w-6 h-6 bg-white text-primary-600 rounded-full flex items-center justify-center text-sm font-bold">4</span>
+            <span>Emails are automatically sent based on each subscriber&apos;s individual schedule</span>
           </li>
         </ol>
-        <Link href="/dashboard/subscribers" className="btn bg-white text-primary-600 hover:bg-gray-100">
+        <Link href="/dashboard/templates" className="btn bg-white text-primary-600 hover:bg-gray-100">
           <Plus className="inline w-4 h-4 mr-2" />
-          Add Your First Subscriber
+          Create Your First Template
         </Link>
       </div>
     </div>

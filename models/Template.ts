@@ -7,8 +7,10 @@ export interface ITemplate {
   name: string;
   subject: string;
   body: string; // Legacy text-based templates
+  htmlBody?: string; // NEW: Raw HTML templates (from ChatGPT, Gmail, etc.)
   blocks?: EmailBlock[]; // New block-based templates
   isBlockBased?: boolean; // Flag to determine template type
+  isHtmlMode?: boolean; // NEW: Flag for HTML paste mode
   createdAt: Date;
   updatedAt: Date;
 }
@@ -34,11 +36,19 @@ const TemplateSchema = new Schema<ITemplate>(
       type: String,
       required: false, // Not required for block-based templates
     },
+    htmlBody: {
+      type: String,
+      required: false, // Raw HTML templates
+    },
     blocks: {
       type: Schema.Types.Mixed,
       required: false,
     },
     isBlockBased: {
+      type: Boolean,
+      default: false,
+    },
+    isHtmlMode: {
       type: Boolean,
       default: false,
     },

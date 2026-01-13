@@ -13,6 +13,8 @@ const textTemplateSchema = z.object({
   name: z.string().min(1).optional(),
   subject: z.string().min(1).optional(),
   body: z.string().min(1).optional(),
+  htmlBody: z.string().min(1).optional(),
+  isHtmlMode: z.boolean().optional(),
 });
 
 // Schema for block-based template updates
@@ -68,6 +70,7 @@ export async function PUT(
 
     const body = await request.json();
     const isBlockBased = body.isBlockBased === true || template.isBlockBased;
+    const isHtmlMode = body.isHtmlMode === true;
 
     // Validate based on template type
     let validatedData;
@@ -76,7 +79,7 @@ export async function PUT(
     } else {
       validatedData = textTemplateSchema.parse(body);
       
-      // Validate variables for text-based templates
+      // Validate variables for text-based and HTML templates
       const allowedVars = await getAllowedVariables(session.user.id);
 
       if (validatedData.subject && !validateTemplateVariables(validatedData.subject, allowedVars)) {
@@ -86,7 +89,12 @@ export async function PUT(
         );
       }
 
-      if (validatedData.body && !validateTemplateVariables(validatedData.body, allowedVars)) {
+      if (isHtmlMode && validatedData.htmlBody && !validateTemplateVariables(validatedData.htmlBody, allowedVars)) {
+        return NextResponse.json(
+          { error: `Invalid variables in HTML body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
+          { status: 400 }
+        );
+      } else if (validatedData.body && !validateTemplateVariables(validatedData.body, allowedVars)) {
         return NextResponse.json(
           { error: `Invalid variables in body. Allowed: ${allowedVars.map(v => `{{${v}}}`).join(', ')}` },
           { status: 400 }
@@ -94,17 +102,47 @@ export async function PUT(
       }
     }
 
-    // Update template
+    // Update template with proper validation
     Object.assign(template, validatedData);
+    
     if (isBlockBased && 'blocks' in validatedData && validatedData.blocks) {
       template.body = ''; // Clear body for block templates
+      template.htmlBody = undefined;
+      template.isBlockBased = true;
+      template.isHtmlMode = false;
+    } else if (isHtmlMode) {
+      // Ensure htmlBody exists for HTML templates
+      if (!validatedData.htmlBody && !template.htmlBody) {
+        return NextResponse.json(
+          { error: "HTML templates require htmlBody content" },
+          { status: 400 }
+        );
+      }
+      template.isHtmlMode = true;
+      template.isBlockBased = false;
+      template.blocks = undefined;
+    } else {
+      // Ensure body exists for text templates
+      if (!validatedData.body && !template.body) {
+        return NextResponse.json(
+          { error: "Text templates require body content" },
+          { status: 400 }
+        );
+      }
+      template.isBlockBased = false;
+      template.isHtmlMode = false;
+      template.blocks = undefined;
+      template.htmlBody = undefined;
     }
+    
     await template.save();
 
     return NextResponse.json(template);
   } catch (error) {
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      // Convert Zod errors to a readable string
+      const errorMessage = error.errors.map(err => err.message).join(', ');
+      return NextResponse.json({ error: errorMessage }, { status: 400 });
     }
     console.error("Template update error:", error);
     return NextResponse.json({ error: "Failed to update template" }, { status: 500 });
@@ -122,6 +160,19 @@ export async function DELETE(
     }
 
     await connectDB();
+    
+    // Import Group model dynamically to avoid circular dependencies
+    const Group = (await import("@/models/Group")).default;
+    
+    // Check if template is used by any groups
+    const groupCount = await Group.countDocuments({ templateId: params.id });
+    if (groupCount > 0) {
+      return NextResponse.json(
+        { error: `Cannot delete template used by ${groupCount} group(s). Remove it from groups first.` },
+        { status: 400 }
+      );
+    }
+    
     const template = await Template.findOneAndDelete({
       _id: params.id,
       userId: session.user.id,
@@ -133,6 +184,7 @@ export async function DELETE(
 
     return NextResponse.json({ message: "Template deleted successfully" });
   } catch (error) {
+    console.error("Template deletion error:", error);
     return NextResponse.json({ error: "Failed to delete template" }, { status: 500 });
   }
 }

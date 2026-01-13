@@ -3,17 +3,14 @@ import { connectDB } from "@/lib/db";
 import { sendEmail, replaceTemplateVariables } from "@/lib/email";
 import { renderBlocksToHTML } from "@/lib/block-renderer";
 import type { EmailBlock } from "@/types/email-blocks";
-import { addMonths, addDays, format } from "date-fns";
+import { addDays, format } from "date-fns";
 
 // Import models AFTER connecting to DB to ensure they're registered
-let Schedule: any;
 let Subscriber: any;
+let Group: any;
 let Template: any;
 
 export const dynamic = 'force-dynamic';
-// maxDuration: 10s (Hobby), 60s (Pro), 300s (Enterprise)
-// Remove or set to 10 for Hobby plan
-// export const maxDuration = 60;
 
 export async function GET(request: Request) {
   // Verify cron authentication
@@ -32,79 +29,132 @@ export async function GET(request: Request) {
     await connectDB();
     
     // Load models after DB connection
-    if (!Schedule) {
-      Schedule = (await import("@/models/Schedule")).default;
+    if (!Subscriber) {
       Subscriber = (await import("@/models/Subscriber")).default;
+      Group = (await import("@/models/Group")).default;
       Template = (await import("@/models/Template")).default;
     }
 
     const now = new Date();
-    // Only process schedules that are due (not too far in the past to prevent stuck schedules)
+    // Find subscribers whose nextSendDate is due and are active
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-    const dueSchedules = await Schedule.find({
+    
+    const dueSubscribers = await Subscriber.find({
       isActive: true,
       nextSendDate: { $gte: oneDayAgo, $lte: now },
     })
-      .populate('subscriberId')
-      .populate('templateId')
-      .limit(100); // Limit to 100 schedules per run to avoid timeout
+      .populate('groupId')
+      .limit(100); // Limit to 100 per run to avoid timeout
 
     const results = [];
 
-    for (const schedule of dueSchedules) {
+    for (const subscriber of dueSubscribers) {
       try {
-        const subscriber = schedule.subscriberId as any;
-        const template = schedule.templateId as any;
-
-        if (!subscriber || !template) {
-          console.warn(`Skipping schedule ${schedule._id}: missing subscriber or template`);
+        // Validate subscriber has required data
+        if (!subscriber.email || !subscriber.email.includes('@')) {
+          console.warn(`Skipping subscriber ${subscriber._id}: invalid email`);
           results.push({ 
             success: false, 
-            scheduleId: schedule._id.toString(),
-            error: 'Missing subscriber or template' 
+            subscriberId: subscriber._id.toString(),
+            error: 'Invalid or missing email address' 
           });
           continue;
         }
         
-        if (!subscriber.email) {
-          console.warn(`Skipping schedule ${schedule._id}: subscriber has no email`);
+        if (!subscriber.nextSendDate) {
+          console.warn(`Skipping subscriber ${subscriber._id}: no nextSendDate`);
           results.push({ 
             success: false, 
-            scheduleId: schedule._id.toString(),
-            error: 'Subscriber has no email' 
+            subscriberId: subscriber._id.toString(),
+            error: 'No nextSendDate set' 
           });
           continue;
         }
 
-        // Calculate next send date
-        let nextSendDate;
-        if (schedule.scheduleType === 'monthly') {
-          nextSendDate = addMonths(new Date(schedule.nextSendDate), 1);
-        } else {
-          nextSendDate = addDays(new Date(schedule.nextSendDate), schedule.intervalDays!);
+        // Get group and template
+        const group = subscriber.groupId;
+        if (!group || !group.isActive) {
+          console.warn(`Skipping subscriber ${subscriber._id}: no active group`);
+          results.push({ 
+            success: false, 
+            subscriberId: subscriber._id.toString(),
+            error: 'No active group assigned' 
+          });
+          continue;
         }
 
-        // Prepare variables
+        const template = await Template.findById(group.templateId);
+        if (!template) {
+          console.warn(`Skipping subscriber ${subscriber._id}: template not found`);
+          results.push({ 
+            success: false, 
+            subscriberId: subscriber._id.toString(),
+            error: 'Template not found' 
+          });
+          continue;
+        }
+
+        // Calculate next send date based on group interval
+        const currentSendDate = new Date(subscriber.nextSendDate);
+        const nextSendDate = addDays(currentSendDate, group.intervalDays);
+
+        // Prepare variables with safe handling
         const variables: Record<string, string> = {
-          name: subscriber.name,
-          email: subscriber.email,
-          service: subscriber.service,
+          name: subscriber.name || '',
+          email: subscriber.email || '',
+          service: subscriber.service || '',
           date: format(now, 'MMMM d, yyyy'),
           nextDate: subscriber.nextDate 
             ? format(new Date(subscriber.nextDate), 'MMMM d, yyyy')
             : format(nextSendDate, 'MMMM d, yyyy'),
-          ...subscriber.customVariables,
         };
+        
+        // Add custom variables safely
+        if (subscriber.customVariables && typeof subscriber.customVariables === 'object') {
+          Object.assign(variables, subscriber.customVariables);
+        }
 
         // Generate email content based on template type
         const subject = replaceTemplateVariables(template.subject, variables);
         let emailBody: string;
 
-        if (template.isBlockBased && template.blocks) {
-          // Block-based template: render blocks to HTML
+        // Priority 1: HTML mode templates
+        if (template.isHtmlMode) {
+          if (!template.htmlBody) {
+            console.error(`HTML template "${template.name}" (${template._id}) has no HTML body`);
+            results.push({ 
+              success: false, 
+              subscriberId: subscriber._id.toString(),
+              error: `HTML template has no HTML body content` 
+            });
+            continue;
+          }
+          emailBody = replaceTemplateVariables(template.htmlBody, variables);
+        } 
+        // Priority 2: Block-based templates
+        else if (template.isBlockBased) {
+          if (!template.blocks || !Array.isArray(template.blocks) || template.blocks.length === 0) {
+            console.error(`Block template "${template.name}" (${template._id}) has no blocks`);
+            results.push({ 
+              success: false, 
+              subscriberId: subscriber._id.toString(),
+              error: `Block template has no blocks defined` 
+            });
+            continue;
+          }
           emailBody = renderBlocksToHTML(template.blocks as EmailBlock[], variables);
-        } else {
-          // Legacy text-based template
+        } 
+        // Priority 3: Legacy text-based templates
+        else {
+          if (!template.body || template.body.trim() === '') {
+            console.error(`Text template "${template.name}" (${template._id}) has no body`);
+            results.push({ 
+              success: false, 
+              subscriberId: subscriber._id.toString(),
+              error: `Text template has no body content` 
+            });
+            continue;
+          }
           emailBody = replaceTemplateVariables(template.body, variables);
         }
 
@@ -116,32 +166,32 @@ export async function GET(request: Request) {
         });
 
         if (success) {
-          await Schedule.updateOne(
-            { _id: schedule._id },
+          // Update subscriber's nextSendDate
+          await Subscriber.updateOne(
+            { _id: subscriber._id },
             {
-              lastSentDate: now,
               nextSendDate,
             }
           );
           results.push({ 
             success: true, 
-            scheduleId: schedule._id.toString(),
+            subscriberId: subscriber._id.toString(),
             email: subscriber.email,
             nextSendDate: nextSendDate.toISOString()
           });
         } else {
           results.push({ 
             success: false, 
-            scheduleId: schedule._id.toString(),
+            subscriberId: subscriber._id.toString(),
             email: subscriber.email,
             error: 'Email sending failed'
           });
         }
       } catch (error) {
-        console.error(`Error processing schedule ${schedule._id}:`, error);
+        console.error(`Error processing subscriber ${subscriber._id}:`, error);
         results.push({ 
           success: false, 
-          scheduleId: schedule._id?.toString() || 'unknown',
+          subscriberId: subscriber._id?.toString() || 'unknown',
           error: error instanceof Error ? error.message : String(error)
         });
       }
@@ -150,6 +200,8 @@ export async function GET(request: Request) {
     return NextResponse.json({
       message: 'Cron job completed',
       processed: results.length,
+      success: results.filter(r => r.success).length,
+      failed: results.filter(r => !r.success).length,
       results,
     });
   } catch (error) {
